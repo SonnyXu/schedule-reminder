@@ -62,3 +62,4 @@ typings/
 env.sh
 token.json
 credentials.json
+schedulerbot.json
