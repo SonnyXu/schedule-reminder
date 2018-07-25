@@ -61,5 +61,5 @@ typings/
 .next
 env.sh
 token.json
-credentials.json
 schedulerbot.json
+credentials.json
