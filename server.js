@@ -24,20 +24,6 @@ mongoose.connection.on('error', function(err) {
 })
 mongoose.connect(process.env.MONGODB_URI)
 
-
-const app = express()
-
-// Google OAuth2 callback
-var code;
-console.log(process.env.REDIRECT_URL)
-app.get(process.env.REDIRECT_URL, (req, res) => {
-  console.log(req.query);
-  code = req.query.code
-  res.send(req.query.code);
-})
-app.listen(1337);
-
-
 rtm.start();
 
 // This argument can be a channel ID, a DM ID, a MPDM ID, or a group ID
@@ -53,12 +39,6 @@ rtm.on('message', (event) => {
         process.env.REDIRECT_URL
       );
 
-      // Check if we have previously stored a token.
-      // fs.readFile(TOKEN_PATH, (err, token) => {
-      //   if (err) return getAccessToken(oAuth2Client, callback);
-      //   oAuth2Client.setCredentials(JSON.parse(token));
-      //   callback(oAuth2Client);
-      // });
       User.findOne({userId: event.user}, function (err, user) {
         if (err) return console.log('Error', err);
         if (!user) {
@@ -66,19 +46,6 @@ rtm.on('message', (event) => {
           return;
         }
         var parsedToken = JSON.parse(user.token)
-        // if (parsedToken.expiry_date <= new Date()) {
-        //   oAuth2Client.on('tokens', (tokens) => {
-        //     if (tokens.refresh_token) {
-        //       // store the refresh_token in my database!
-        //       console.log(tokens.refresh_token);
-        //     }
-        //     console.log(tokens.access_token);
-        //   });
-        //   oAuth2Client.setCredentials({
-        //     refresh_token: `STORED_REFRESH_TOKEN`
-        //   });
-        //   oAuth2Client.refreshAccessToken()
-        // }
         oAuth2Client.setCredentials(parsedToken);
         callback(oAuth2Client);
       });
@@ -90,25 +57,21 @@ rtm.on('message', (event) => {
         access_type: 'offline',
         scope: SCOPES,
       });
-      //rtm.sendMessage('Authorize this app by visiting this url:', authUrl);
+
       rtm.sendMessage("Authorize this app by visiting this url: " + authUrl + "", event.channel);
-      // const rl = readline.createInterface({
-      //   input: process.stdin,
-      //   output: process.stdout,
-      // });
 
+      const app = express()
 
-
-      // rl.question('Enter the code from that page here: ', (code) => {
-      //   rl.close();
+      // Google OAuth2 callback
+      var code;
+      console.log(process.env.REDIRECT_URL)
+      app.get("/", (req, res) => {
+        console.log(req.query);
+        code = req.query.code
         oAuth2Client.getToken(code, (err, token) => {
           if (err) return callback(err);
+          console.log("hi", token);
           oAuth2Client.setCredentials(token);
-          // Store the token to disk for later program executions
-          // fs.writeFile(TOKEN_PATH, JSON.stringify(token), (err) => {
-          //   if (err) console.error(err);
-          //   console.log('Token stored to', TOKEN_PATH);
-          // });
           var newUser = new User({
             userId: event.user,
             token: JSON.stringify(token)
@@ -122,11 +85,10 @@ rtm.on('message', (event) => {
           })
           callback(oAuth2Client);
         });
-      // });
+        res.send(code);
+      })
+      app.listen(1337);
     }
-
-
-
 
     let query = event.text;
 
@@ -135,13 +97,10 @@ rtm.on('message', (event) => {
     const languageCode = 'en-US';
 
     // Instantiate a DialogFlow client.
-
     const sessionClient = new dialogflow.SessionsClient();
 
     // Define session path
     const sessionPath = sessionClient.sessionPath(projectId, sessionId);
-
-
 
     // The text query request.
     const request = {
@@ -202,18 +161,19 @@ rtm.on('message', (event) => {
 
             function createEvent(auth) {
               const calendar = google.calendar({version: 'v3', auth});
-              // console.log(result.parameters.fields);
-              console.log(calendar);
+              console.log(result.parameters.fields.Time.structValue.fields);
+              var newDateObj = new Date(new Date(result.parameters.fields.Time.structValue.fields.date_time.stringValue).getTime() + parseInt(result.parameters.fields.duration.stringValue)*60000)
+              console.log(newDateObj)
               calendar.events.insert({
                 calendarId: 'primary', // Go to setting on your calendar to get Id
                 'resource': {
-                  'summary': "hello",
+                  'summary': result.parameters.fields.subject.stringValue,
                   'start': {
-                    'dateTime': '2018-07-25T02:10:35.462Z',
+                    'dateTime': result.parameters.fields.Time.structValue.fields.date_time.stringValue,
                     'timeZone': 'America/Los_Angeles'
                   },
                   'end': {
-                    'dateTime': '2018-07-25T06:10:35.462Z',
+                    'dateTime': newDateObj,
                     'timeZone': 'America/Los_Angeles'
                   }
                 }
@@ -223,15 +183,11 @@ rtm.on('message', (event) => {
               })
               return;
             }
-
-
             // Authorize a client with credentials, then call the Google Calendar API.
             authorize(JSON.parse(content), createEvent);
             //authorize(JSON.parse(content), listEvents);
           });
         }
-
-        //web.chat.postMessage(token, event.user, result.fulfillmentText);
         if (result.intent) {
           console.log(`  Intent: ${result.intent.displayName}`);
         } else {
