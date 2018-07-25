@@ -4,12 +4,12 @@ const fs = require('fs');
 const readline = require('readline');
 const {google} = require('googleapis');
 import express from 'express'
+const app = express()
 import bodyParser from 'body-parser'
 var User = require('./models.js').User;
 // An access token (from your Slack app or custom integration - usually xoxb)
 const token = process.env.SLACK_TOKEN_BOT;
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
-const TOKEN_PATH = 'token.json';
 // The client is initialized and then started to get an active connection to the platform
 const rtm = new RTMClient(token);
 const web = new WebClient(token);
@@ -24,6 +24,10 @@ mongoose.connection.on('error', function(err) {
 })
 mongoose.connect(process.env.MONGODB_URI)
 
+// app.get('/', (req, res) => {
+//   res.send('Hello there!');
+// })
+
 rtm.start();
 
 // This argument can be a channel ID, a DM ID, a MPDM ID, or a group ID
@@ -32,7 +36,7 @@ rtm.on('message', (event) => {
   // For structure of `event`, see https://api.slack.com/events/message
   if (event.user === rtm.activeUserId) return;
   else {
-    function authorize(credentials, callback) {
+    function authorize(callback) {
       const oAuth2Client = new google.auth.OAuth2(
         process.env.CLIENT_ID,
         process.env.CLIENT_SECRET,
@@ -60,11 +64,8 @@ rtm.on('message', (event) => {
 
       rtm.sendMessage("Authorize this app by visiting this url: " + authUrl + "", event.channel);
 
-      const app = express()
-
       // Google OAuth2 callback
       var code;
-      console.log(process.env.REDIRECT_URL)
       app.get("/", (req, res) => {
         console.log(req.query);
         code = req.query.code
@@ -87,7 +88,7 @@ rtm.on('message', (event) => {
         });
         res.send(code);
       })
-      app.listen(1337);
+
     }
 
     let query = event.text;
@@ -130,11 +131,6 @@ rtm.on('message', (event) => {
         })
         .catch(console.error);
         if (result.allRequiredParamsPresent) {
-          fs.readFile('credentials.json', (err, content) => {
-            if (err) {
-              rtm.sendMessage('Error loading client secret file', event.channel);
-              return;
-            }
 
             function listEvents(auth) {
               const calendar = google.calendar({version: 'v3', auth});
@@ -183,10 +179,11 @@ rtm.on('message', (event) => {
               })
               return;
             }
+
             // Authorize a client with credentials, then call the Google Calendar API.
-            authorize(JSON.parse(content), createEvent);
+            authorize(createEvent);
             //authorize(JSON.parse(content), listEvents);
-          });
+          // });
         }
         if (result.intent) {
           console.log(`  Intent: ${result.intent.displayName}`);
@@ -198,4 +195,8 @@ rtm.on('message', (event) => {
         console.error('ERROR:', err);
       });
   }
+});
+
+app.listen(process.env.PORT || 4040, function() {
+  console.log('Server listening at port ' + (process.env.PORT || 4040))
 });
