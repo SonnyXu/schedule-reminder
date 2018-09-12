@@ -6,11 +6,11 @@ const {google} = require('googleapis');
 const express = require ('express');
 const bodyParser = require ('body-parser');
 var User = require('./models.js').User;
-// An access token (from your Slack app or custom integration - usually xoxb)
+
 const token = process.env.SLACK_TOKEN_BOT;
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
 const TOKEN_PATH = 'token.json';
-// The client is initialized and then started to get an active connection to the platform
+
 const rtm = new RTMClient(token);
 const web = new WebClient(token);
 
@@ -85,17 +85,14 @@ rtm.on('message', (event) => {
       }
       let query = event.text;
 
-      const projectId = process.env.PROJECT_ID; //https://dialogflow.com/docs/agents#settings
+      const projectId = process.env.PROJECT_ID;
       const sessionId = '12345';
       const languageCode = 'en-US';
 
-      // Instantiate a DialogFlow client.
       const sessionClient = new dialogflow.SessionsClient();
 
-      // Define session path
       const sessionPath = sessionClient.sessionPath(projectId, sessionId);
 
-      // The text query request.
       const request = {
         session: sessionPath,
         queryInput: {
@@ -106,7 +103,6 @@ rtm.on('message', (event) => {
         },
       };
 
-      // Send request and log result
       sessionClient
       .detectIntent(request)
       .then(responses => {
