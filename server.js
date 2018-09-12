@@ -102,7 +102,6 @@ rtm.on('message', (event) => {
           },
         },
       };
-
       sessionClient
       .detectIntent(request)
       .then(responses => {
